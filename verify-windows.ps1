@@ -106,8 +106,11 @@ try {
     $env:CODEX_HOME=Join-Path $Root 'empty-codex'
     [void](New-Item -ItemType Directory -Path $env:TOKEN_RANK_DATA_DIR -Force)
     Assert (-not (Get-ScheduledTask -TaskName TokenRankSync -ErrorAction SilentlyContinue)) 'Unexpected pre-existing task on disposable runner'
-    $service=Run 'service-install' $Bin @('service','install','--site',$Site,'--interval','3600')
+    $service=Run 'service-install' $Bin @('service','install','--site',$Site,'--interval','1800')
     $TaskCreated=$true
+    $taskQuery=Run 'task-query' (Join-Path $env:WINDIR 'System32/schtasks.exe') @('/Query','/TN','TokenRankSync','/XML')
+    $taskExport=Export-ScheduledTask -TaskName TokenRankSync
+    WriteText (Join-Path $Root 'task-xml.json') (@{expected=[IO.File]::ReadAllText((Join-Path $env:TOKEN_RANK_DATA_DIR 'token-rank-task.xml'));actual=$taskExport}|ConvertTo-Json -Depth 5)
     Assert ($service.exit -eq 0) 'Native task installation failed'
     $task=Get-ScheduledTask -TaskName TokenRankSync
     Assert ($task.Actions.Execute -match 'wscript.exe') 'Unexpected task launcher'
