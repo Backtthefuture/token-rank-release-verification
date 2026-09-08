@@ -1,0 +1,55 @@
+{
+  "channel": "validation",
+  "cohort_salt": "7b66856bb5e153be46357f58f3590c65e79de744db493d0e",
+  "expires_at": "2026-09-15T18:13:15Z",
+  "issued_at": "2026-09-08T18:13:15Z",
+  "key_id": "owner-primary-20260905",
+  "manifest_seq": 2026090940,
+  "min_client_for_calculation_version": {
+    "5": "0.5.8",
+    "6": "0.5.9"
+  },
+  "next_public_keys": [],
+  "releases": [
+    {
+      "artifact_url": "/token-rank/dl/v0.5.19/73414814b38ae161c1c14c401d28f6e695673eecddacdf35cfd388339dceed01/token-rank.exe",
+      "bytes": 4713472,
+      "commit": "910c29d6fd654f111f7a79e836f9fd3a949a638b",
+      "min_reader_version": "0.5.8",
+      "min_rollback_version": "0.5.11",
+      "rollout_percent": 100,
+      "sha256": "73414814b38ae161c1c14c401d28f6e695673eecddacdf35cfd388339dceed01",
+      "state_schema_read_max": 3,
+      "state_schema_read_min": 1,
+      "target": "x86_64-pc-windows-msvc",
+      "version": "0.5.19"
+    },
+    {
+      "artifact_url": "/token-rank/dl/v0.5.19/c3fcffbe56b0bbac0d748c9e604242bfe36ba85d3ffca1bec7af5674ea83fac6/token-rank-darwin-arm64",
+      "bytes": 6290496,
+      "commit": "910c29d6fd654f111f7a79e836f9fd3a949a638b",
+      "min_reader_version": "0.5.8",
+      "min_rollback_version": "0.5.11",
+      "rollout_percent": 100,
+      "sha256": "c3fcffbe56b0bbac0d748c9e604242bfe36ba85d3ffca1bec7af5674ea83fac6",
+      "state_schema_read_max": 3,
+      "state_schema_read_min": 1,
+      "target": "aarch64-apple-darwin",
+      "version": "0.5.19"
+    },
+    {
+      "artifact_url": "/token-rank/dl/v0.5.19/d8409a3189a999bca4588ba664a5ce42a2af63e48bf2e8bdb14361e5ec3a2461/token-rank-darwin-x64",
+      "bytes": 6214880,
+      "commit": "910c29d6fd654f111f7a79e836f9fd3a949a638b",
+      "min_reader_version": "0.5.8",
+      "min_rollback_version": "0.5.11",
+      "rollout_percent": 100,
+      "sha256": "d8409a3189a999bca4588ba664a5ce42a2af63e48bf2e8bdb14361e5ec3a2461",
+      "state_schema_read_max": 3,
+      "state_schema_read_min": 1,
+      "target": "x86_64-apple-darwin",
+      "version": "0.5.19"
+    }
+  ],
+  "schema_version": 1
+}
