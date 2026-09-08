@@ -1,7 +1,7 @@
 {
   "version": "0.5.15",
-  "commit": "0a44102eaefa870cf20fb2b3dadca1ea30934b53",
-  "sha256": "b9ec204c694c4d97a5c5754bab60359cfb69b89ffa6b36515c11594c5ea93949",
-  "test_sha256": "caaffa0e5165eea712277c927ccd9a05afd836cf8c35e8734823712aad833910",
-  "test_artifact_url": "/token-rank/dl/validation/v0.5.15/caaffa0e5165eea712277c927ccd9a05afd836cf8c35e8734823712aad833910/token-rank-tests.exe"
+  "commit": "5d0c5c819457b3777af19fe5b6ae21afd7f27927",
+  "sha256": "68b790486a8b78064637a13c058b04e4a3815dc650a1c8ad41004dba0ce7578c",
+  "test_sha256": "ddbf44276a5a2c2f9d48a12421aaa3b78ea2a326ea2505f00fa2b5e8e04d88a9",
+  "test_artifact_url": "/token-rank/dl/validation/v0.5.15/ddbf44276a5a2c2f9d48a12421aaa3b78ea2a326ea2505f00fa2b5e8e04d88a9/token-rank-tests.exe"
 }
