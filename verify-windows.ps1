@@ -46,7 +46,7 @@ function ParseScript([string]$Path) {
 function Counts($inputCount,$cached,$outputCount,$reasoning){
     return @{input_tokens=$inputCount;cached_input_tokens=$cached;cache_write_input_tokens=0;output_tokens=$outputCount;reasoning_output_tokens=$reasoning;total_tokens=($inputCount+$outputCount)}
 }
-function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap) {
+function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap,[bool]$Paged=$false) {
     $case=Join-Path $Root $Name;$sessions=Join-Path $case 'sessions'
     [void](New-Item -ItemType Directory -Path $sessions -Force)
     $env:CODEX_HOME=$case
@@ -65,6 +65,19 @@ function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap) {
     $rows+=,@{timestamp=($ts+3000);type='event_msg';payload=@{type='token_count';info=@{last_token_usage=$second;total_token_usage=$second}}}
     $path=Join-Path $sessions ('rollout-'+$thread+'.jsonl')
     [IO.File]::WriteAllText($path,(($rows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
+    $secondPath=$null;$secondBefore=$null
+    if($Paged){
+        $rows[0].payload.history_mode='paginated';$rows[0].payload.session_id=$thread
+        $firstRows=@($rows[0..3])
+        $pageRows=@(
+            @{timestamp=($ts+1500);type='session_meta';payload=@{id=$thread;session_id=$thread;history_mode='paginated';parent_thread_id=$parent;history_base=@{thread_id=$thread;end_ordinal_exclusive=86;end_byte_offset=1564981}}},
+            @{timestamp=($ts+1600);type='turn_context';payload=@{model='test-model'}}
+        ) + @($rows[4..($rows.Count-1)])
+        $secondPath=Join-Path $sessions 'rollout-33333333-3333-4333-8333-333333333333.jsonl'
+        [IO.File]::WriteAllText($path,(($firstRows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
+        [IO.File]::WriteAllText($secondPath,(($pageRows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
+        $secondBefore=Digest $secondPath
+    }
     $before=Digest $path
     foreach($pass in @(1,2)){
         $run=Run ($Name+'-'+$pass) $Bin @('scan','--client','codex','--days','30','--json')
@@ -83,6 +96,7 @@ function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap) {
             Assert ($hour -eq 1254251 -and $session -eq 1254251) ('Incorrect accounting: '+$hour+'/'+$session)
         }
         Assert ((Digest $path) -eq $before) 'Scan modified original fixture'
+        if($Paged){Assert ((Digest $secondPath) -eq $secondBefore) 'Scan modified continuation fixture'}
     }
     Assert (-not (Test-Path (Join-Path $env:TOKEN_RANK_DATA_DIR 'client-state.json'))) 'Account state created by read-only scan'
 }
@@ -97,6 +111,9 @@ try {
     ScanFixture 'normal' $false $false
     ScanFixture 'duplicate' $true $false
     ScanFixture 'gap' $false $true
+    ScanFixture 'paged-normal' $false $false $true
+    ScanFixture 'paged-duplicate' $true $false $true
+    ScanFixture 'paged-gap' $false $true $true
     $installScript=Join-Path $Root 'install.ps1'
     Invoke-WebRequest -UseBasicParsing -Uri ($Site+'/token-rank/install.ps1') -OutFile $installScript -TimeoutSec 45
     $null=ParseScript $installScript
@@ -165,6 +182,10 @@ try {
     Assert ((Digest $testBinary) -eq [string]$Config.test_sha256) 'Native test executable hash mismatch'
     $unit=Run 'native-task-unit-tests' $testBinary @('windows_task','--nocapture')
     Assert ($unit.exit -eq 0 -and $unit.stdout.Contains('3 passed; 0 failed')) 'Native scheduler unit regressions failed'
+    $pagesUnit=Run 'native-pages-unit-tests' $testBinary @('codex_pages::tests','--nocapture')
+    Assert ($pagesUnit.exit -eq 0 -and $pagesUnit.stdout.Contains('8 passed; 0 failed')) 'Native page accounting regressions failed'
+    $healthUnit=Run 'native-health-unit-tests' $testBinary @('source_health_reports_bounded_dates_and_known_codes_without_file_details','--nocapture')
+    Assert ($healthUnit.exit -eq 0 -and $healthUnit.stdout.Contains('1 passed; 0 failed')) 'Native source health privacy regression failed'
     $report=@{version=$Version;status='native_windows_passed';os=[Environment]::OSVersion.VersionString;powershell=$PSVersionTable.PSVersion.ToString();native_wrapper_powershell='Windows PowerShell 5.1';sha256=$Expected;commit=$Commit;checks=$Results;wrapper_final_exit_without_account=$wrapperRun.exit;real_user_data_used=$false}
     WriteText (Join-Path $Root 'receipt.json') ($report|ConvertTo-Json -Depth 12)
     Write-Host ($report|ConvertTo-Json -Depth 12 -Compress)
