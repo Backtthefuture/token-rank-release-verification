@@ -66,11 +66,13 @@ function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap) {
     $before=Digest $path
     foreach($pass in @(1,2)){
         $run=Run ($Name+'-'+$pass) $Bin @('scan','--client','codex','--days','30','--json')
-        Assert ($run.exit -eq 0) ('Scan failed: '+$Name)
+        $expectedExit=0;if($Gap){$expectedExit=22}
+        Assert ($run.exit -eq $expectedExit) ('Unexpected scan exit: '+$Name+'/'+$run.exit)
         $scan=$run.stdout|ConvertFrom-Json
         if($Gap){
             Assert (@($scan.sources.codex.blocked_dates).Count -gt 0) 'Counter gap was not held'
             Assert ($run.stdout.Contains('ledger_thread_discontinuity')) 'Missing exact gap diagnostic'
+            Assert (@($scan.hourly_model).Count -eq 0 -and @($scan.sessions).Count -eq 0) 'Blocked date emitted uploadable rows'
         }else{
             Assert (@($scan.sources.codex.blocked_dates | Where-Object { $null -ne $_ }).Count -eq 0) 'Unexpected blocked date'
             Assert ($scan.sources.codex.status -eq 'ready' -and @($scan.sources.codex.verified_dates).Count -gt 0) 'Verified coverage was not reported'
