@@ -1,0 +1,7 @@
+{
+  "version": "0.5.15",
+  "commit": "0a44102eaefa870cf20fb2b3dadca1ea30934b53",
+  "sha256": "b9ec204c694c4d97a5c5754bab60359cfb69b89ffa6b36515c11594c5ea93949",
+  "test_sha256": "caaffa0e5165eea712277c927ccd9a05afd836cf8c35e8734823712aad833910",
+  "test_artifact_url": "/token-rank/dl/validation/v0.5.15/caaffa0e5165eea712277c927ccd9a05afd836cf8c35e8734823712aad833910/token-rank-tests.exe"
+}
