@@ -125,6 +125,8 @@ try {
     $SignatureStatus=[string](Get-AuthenticodeSignature -LiteralPath $Bin).Status
     Assert ((Digest (Join-Path $PSScriptRoot 'manifest-v1.json')) -eq [string]$Config.validation_manifest_sha256) 'Validation manifest hash mismatch'
     Assert ((Digest (Join-Path $PSScriptRoot 'manifest-v1.json.sig')) -eq [string]$Config.validation_signature_sha256) 'Validation signature hash mismatch'
+    Assert ((Digest (Join-Path $PSScriptRoot 'manifest-stable-local.json')) -eq [string]$Config.local_stable_manifest_sha256) 'Local stable manifest hash mismatch'
+    Assert ((Digest (Join-Path $PSScriptRoot 'manifest-stable-local.json.sig')) -eq [string]$Config.local_stable_signature_sha256) 'Local stable signature hash mismatch'
     $ValidationManifest=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'manifest-v1.json') -Raw|ConvertFrom-Json
     Assert ($ValidationManifest.channel -eq 'validation') 'Validation channel mismatch'
     $WindowsRelease=$ValidationManifest.releases|Where-Object {$_.target -eq 'x86_64-pc-windows-msvc'}
@@ -211,14 +213,17 @@ try {
     Assert ($stage.exit -eq 80) 'Signed candidate did not stage'
     $pending=Get-Content -LiteralPath (Join-Path $env:TOKEN_RANK_DATA_DIR 'pending-update.json') -Raw|ConvertFrom-Json
     Assert ($pending.artifact_sha256 -eq $Expected) 'Staged hash mismatch'
-    $promote=Run 'signed-promote' $Bin @('update','promote','--json')
-    Assert ($promote.exit -eq 0 -and ($promote.stdout|ConvertFrom-Json).status -eq 'promoted') 'Signed candidate did not promote'
+    $directPromote=Run 'direct-promote-blocked' $Bin @('update','promote','--json')
+    Assert ($directPromote.exit -eq 50 -and $directPromote.stderr.Contains('update_wrapper_promotion_required')) 'Direct Windows promotion was not blocked'
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'manifest-stable-local.json') -Destination (Join-Path $ServerDl 'manifest-v1.json') -Force
+    Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'manifest-stable-local.json.sig') -Destination (Join-Path $ServerDl 'manifest-v1.json.sig') -Force
     $wrapperRun=Run 'native-wrapper' $NativePowerShell @('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$wrapper) 240
-    Assert ((Digest $Bin) -eq $Expected) 'Native wrapper replaced the promoted candidate'
+    Assert ((Digest $Bin) -eq $Expected) 'Native wrapper did not promote the signed candidate'
     Assert ((Digest ($Bin+'.previous')) -eq $Previous) 'Previous binary was not retained'
+    Assert ((Get-Content -LiteralPath (Join-Path $env:TOKEN_RANK_DATA_DIR 'sync.log') -Raw).Contains('Signed update promoted')) 'Missing successful wrapper promotion log'
     $after=Run 'after-upgrade' $Bin @('version','--json');$identity=$after.stdout|ConvertFrom-Json
     Assert ($after.exit -eq 0 -and $identity.version -eq $Version -and $identity.commit -eq $Commit) 'Upgraded identity mismatch'
-    $again=Run 'no-update' $Bin @('update','stage','--site',$LocalSite,'--channel','validation','--json')
+    $again=Run 'no-update' $Bin @('update','stage','--site',$LocalSite,'--channel','stable','--json')
     Assert ($again.exit -eq 0 -and ($again.stdout|ConvertFrom-Json).status -eq 'no_update') 'Second update was not a no-op'
     Assert (-not (Test-Path (Join-Path $env:TOKEN_RANK_DATA_DIR 'client-state.json'))) 'Account unexpectedly created'
     $sixty=Run 'service-install-60' $Bin @('service','install','--site',$LocalSite,'--interval','3600')
@@ -237,7 +242,7 @@ try {
     Assert ($ledgerUnit.exit -eq 0 -and $ledgerUnit.stdout.Contains('22 passed; 0 failed')) 'Native ledger diagnostics regressions failed'
     $healthUnit=Run 'native-health-unit-tests' $testBinary @('source_health_reports_bounded_dates_and_known_codes_without_file_details','--nocapture')
     Assert ($healthUnit.exit -eq 0 -and $healthUnit.stdout.Contains('1 passed; 0 failed')) 'Native source health privacy regression failed'
-    $report=@{version=$Version;status='native_windows_passed_unsigned_release_blocked';os=[Environment]::OSVersion.VersionString;powershell=$PSVersionTable.PSVersion.ToString();native_wrapper_powershell='Windows PowerShell 5.1';sha256=$Expected;commit=$Commit;checks=$Results;wrapper_final_exit_without_account=$wrapperRun.exit;real_user_data_used=$false;authenticode_status=$SignatureStatus;release_allowed=$false;validation_channel='validation';promotion_mode='explicit_signed_validation'}
+    $report=@{version=$Version;status='native_windows_passed_unsigned_release_blocked';os=[Environment]::OSVersion.VersionString;powershell=$PSVersionTable.PSVersion.ToString();native_wrapper_powershell='Windows PowerShell 5.1';sha256=$Expected;commit=$Commit;checks=$Results;wrapper_final_exit_without_account=$wrapperRun.exit;real_user_data_used=$false;authenticode_status=$SignatureStatus;release_allowed=$false;validation_channel='validation_then_local_stable';promotion_mode='installed_wrapper'}
     WriteText (Join-Path $Root 'receipt.json') ($report|ConvertTo-Json -Depth 12)
     Write-Host ($report|ConvertTo-Json -Depth 12 -Compress)
 } finally {
