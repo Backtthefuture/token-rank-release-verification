@@ -1,7 +1,13 @@
 {
-  "version": "0.5.18",
-  "commit": "dbf2cb994185a8d04ec7057e4b8690a983a9a5a9",
-  "sha256": "f511ac261e77a41fe60279cd7650e13fd79d682065304c9090e8bced07b72fd6",
-  "test_sha256": "f021944e4707dcc4b4f7766587f717f8f34610753513dfa0641c93e04e0fc901",
-  "test_artifact_url": "/token-rank/dl/validation/v0.5.18/f021944e4707dcc4b4f7766587f717f8f34610753513dfa0641c93e04e0fc901/token-rank-tests.exe"
+  "version": "0.5.19",
+  "commit": "910c29d6fd654f111f7a79e836f9fd3a949a638b",
+  "sha256": "73414814b38ae161c1c14c401d28f6e695673eecddacdf35cfd388339dceed01",
+  "test_sha256": "2dbcf92d28500b7d8a01b233eb328efb632c30e17de5b285c84cfccb1a59d983",
+  "candidate_artifact_url": "/token-rank/dl/validation/v0.5.19/73414814b38ae161c1c14c401d28f6e695673eecddacdf35cfd388339dceed01/token-rank.exe",
+  "test_artifact_url": "/token-rank/dl/validation/v0.5.19/2dbcf92d28500b7d8a01b233eb328efb632c30e17de5b285c84cfccb1a59d983/token-rank-tests.exe",
+  "previous_artifact_url": "https://www.zhenganhuo.com/token-rank/dl/v0.5.17/42e6ac85ccf6899738be81b7e33baf018fa4450dd68986d8945544419780f664/token-rank.exe",
+  "validation_manifest_sha256": "56eea316d37959372871e8ae6afc3790447f589351b9600a4b7489e27c439c4a",
+  "validation_signature_sha256": "fc56b1132b6ef0f8bd762cf657280e7446c9e86d965cf15b94781ff9a057dd04",
+  "channel": "validation",
+  "release_allowed": false
 }
