@@ -1,8 +1,6 @@
 name: Native Windows release verification
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
 permissions:
   contents: read
 concurrency:
@@ -17,7 +15,9 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/$env:GITHUB_SHA/verify-windows.ps1" -OutFile "$env:RUNNER_TEMP/verify-windows.ps1" -TimeoutSec 60
+          foreach ($name in @('verify-windows.ps1','release-config.json')) {
+            Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/$env:GITHUB_SHA/$name" -OutFile "$env:RUNNER_TEMP/$name" -TimeoutSec 60
+          }
       - name: Execute native Windows PowerShell acceptance
         shell: powershell
         run: |
