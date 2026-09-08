@@ -1,9 +1,11 @@
 ﻿param([string]$Site='https://kaifa.zhenganhuo.com')
 $ErrorActionPreference='Stop'
 [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
-$Expected='8f20701f1d9a457ab889208c9ac6d72a124d50c4c2b1a5dda3019cd6ff024cb2'
+$Config=Get-Content -LiteralPath (Join-Path $PSScriptRoot 'release-config.json') -Raw | ConvertFrom-Json
+$Expected=[string]$Config.sha256
+$Version=[string]$Config.version
+$Commit=[string]$Config.commit
 $Previous='63c153aa20d7dbe4bd2bd0a23dec4684afe004fd23b1d14d38d9f07f801c58f1'
-$Commit='de214e48679e28d6b112bcc423584acf121b1d4e'
 $Root=Join-Path $env:RUNNER_TEMP ('Token Rank '+[char]0x4e2d+[char]0x6587+' acceptance')
 [void](New-Item -ItemType Directory -Path $Root -Force)
 $Utf8=New-Object Text.UTF8Encoding($true)
@@ -86,10 +88,10 @@ function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap) {
 }
 $TaskCreated=$false
 try {
-    Invoke-WebRequest -UseBasicParsing -Uri ($Site+'/token-rank/dl/v0.5.14/'+$Expected+'/token-rank.exe') -OutFile $Bin -TimeoutSec 120
+    Invoke-WebRequest -UseBasicParsing -Uri ($Site+'/token-rank/dl/v'+$Version+'/'+$Expected+'/token-rank.exe') -OutFile $Bin -TimeoutSec 120
     Assert ((Digest $Bin) -eq $Expected) 'Candidate hash mismatch'
     $identity=Run 'version' $Bin @('version','--json');$v=$identity.stdout|ConvertFrom-Json
-    Assert ($identity.exit -eq 0 -and $v.version -eq '0.5.14' -and $v.commit -eq $Commit -and $v.target -eq 'x86_64-pc-windows-msvc') 'Candidate identity mismatch'
+    Assert ($identity.exit -eq 0 -and $v.version -eq $Version -and $v.commit -eq $Commit -and $v.target -eq 'x86_64-pc-windows-msvc') 'Candidate identity mismatch'
     $keyring=Run 'keyring' $Bin @('update','verify-keyring','--json');$keys=$keyring.stdout|ConvertFrom-Json
     Assert ($keyring.exit -eq 0 -and $keys.status -eq 'ready' -and $keys.key_count -eq 2) 'Keyring mismatch'
     ScanFixture 'normal' $false $false
@@ -101,7 +103,6 @@ try {
     $old=Join-Path $Root 'previous.exe'
     Invoke-WebRequest -UseBasicParsing -Uri ($Site+'/token-rank/dl/v0.5.13/'+$Previous+'/token-rank.exe') -OutFile $old -TimeoutSec 120
     Assert ((Digest $old) -eq $Previous) 'Previous release hash mismatch'
-    Copy-Item -LiteralPath $old -Destination $Bin -Force
     $env:TOKEN_RANK_DATA_DIR=Join-Path $Root 'upgrade data'
     $env:CODEX_HOME=Join-Path $Root 'empty-codex'
     [void](New-Item -ItemType Directory -Path $env:TOKEN_RANK_DATA_DIR -Force)
@@ -137,6 +138,12 @@ try {
             Assert ((Get-Content -LiteralPath $log -Raw).Contains('harmless-fixture-stderr')) 'Native stderr was lost'
         }
     }
+    $newWrapperHash=Digest $wrapper
+    Copy-Item -LiteralPath $old -Destination $Bin -Force
+    $legacyService=Run 'legacy-service-install' $Bin @('service','install','--site',$Site,'--interval','1800')
+    Assert ($legacyService.exit -eq 1 -and $legacyService.stderr.Contains('read-back validation failed')) 'Legacy reproduction changed unexpectedly'
+    Disable-ScheduledTask -TaskName TokenRankSync | Out-Null
+    Assert ((Digest $wrapper) -eq $newWrapperHash) 'The installed legacy updater differs from the fixed release updater'
     $stage=Run 'signed-stage' $Bin @('update','stage','--site',$Site,'--channel','stable','--json')
     Assert ($stage.exit -eq 80) 'Signed candidate did not stage'
     $pending=Get-Content -LiteralPath (Join-Path $env:TOKEN_RANK_DATA_DIR 'pending-update.json') -Raw|ConvertFrom-Json
@@ -146,11 +153,19 @@ try {
     Assert ((Digest ($Bin+'.previous')) -eq $Previous) 'Previous binary was not retained'
     Assert ((Get-Content -LiteralPath (Join-Path $env:TOKEN_RANK_DATA_DIR 'sync.log') -Raw).Contains('Signed update promoted')) 'Missing successful post-update check'
     $after=Run 'after-upgrade' $Bin @('version','--json');$identity=$after.stdout|ConvertFrom-Json
-    Assert ($after.exit -eq 0 -and $identity.version -eq '0.5.14' -and $identity.commit -eq $Commit) 'Upgraded identity mismatch'
+    Assert ($after.exit -eq 0 -and $identity.version -eq $Version -and $identity.commit -eq $Commit) 'Upgraded identity mismatch'
     $again=Run 'no-update' $Bin @('update','stage','--site',$Site,'--channel','stable','--json')
     Assert ($again.exit -eq 0 -and ($again.stdout|ConvertFrom-Json).status -eq 'no_update') 'Second update was not a no-op'
     Assert (-not (Test-Path (Join-Path $env:TOKEN_RANK_DATA_DIR 'client-state.json'))) 'Account unexpectedly created'
-    $report=@{status='native_windows_passed';os=[Environment]::OSVersion.VersionString;powershell=$PSVersionTable.PSVersion.ToString();native_wrapper_powershell='Windows PowerShell 5.1';sha256=$Expected;commit=$Commit;checks=$Results;wrapper_final_exit_without_account=$wrapperRun.exit;real_user_data_used=$false}
+    $sixty=Run 'service-install-60' $Bin @('service','install','--site',$Site,'--interval','3600')
+    Assert ($sixty.exit -eq 0) 'Normalized one-hour task readback failed'
+    Disable-ScheduledTask -TaskName TokenRankSync | Out-Null
+    $testBinary=Join-Path $Root 'token-rank-tests.exe'
+    Invoke-WebRequest -UseBasicParsing -Uri ($Site+[string]$Config.test_artifact_url) -OutFile $testBinary -TimeoutSec 120
+    Assert ((Digest $testBinary) -eq [string]$Config.test_sha256) 'Native test executable hash mismatch'
+    $unit=Run 'native-task-unit-tests' $testBinary @('windows_task','--nocapture')
+    Assert ($unit.exit -eq 0 -and $unit.stdout.Contains('3 passed; 0 failed')) 'Native scheduler unit regressions failed'
+    $report=@{version=$Version;status='native_windows_passed';os=[Environment]::OSVersion.VersionString;powershell=$PSVersionTable.PSVersion.ToString();native_wrapper_powershell='Windows PowerShell 5.1';sha256=$Expected;commit=$Commit;checks=$Results;wrapper_final_exit_without_account=$wrapperRun.exit;real_user_data_used=$false}
     WriteText (Join-Path $Root 'receipt.json') ($report|ConvertTo-Json -Depth 12)
     Write-Host ($report|ConvertTo-Json -Depth 12 -Compress)
 } finally {
