@@ -15,7 +15,7 @@ jobs:
         shell: powershell
         run: |
           $ErrorActionPreference='Stop'
-          foreach ($name in @('verify-windows.ps1','release-config.json','manifest-v1.json','manifest-v1.json.sig')) {
+          foreach ($name in @('verify-windows.ps1','release-config.json','manifest-v1.json','manifest-v1.json.sig','validation-server.py')) {
             Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/$env:GITHUB_SHA/$name" -OutFile "$env:RUNNER_TEMP/$name" -TimeoutSec 60
           }
       - name: Execute native Windows PowerShell acceptance
