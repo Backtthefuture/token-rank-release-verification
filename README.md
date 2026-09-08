@@ -1,9 +1,5 @@
-# Token Rank public release verification
+# Token Rank native Windows release verification
 
-This repository contains only black-box acceptance scripts for downloadable Token Rank releases. It does not contain the private application source, production credentials, signing keys, or user usage records.
+Public black-box verification on a disposable Windows 2022 runner, using signed release artifacts and synthetic usage fixtures. No private application source, user records or credentials are stored here.
 
-The Windows job uses a standard GitHub-hosted `windows-2022` runner. It validates the pinned release hash and identity, synthetic Codex accounting and duplicate handling, Windows PowerShell 5.1 exit codes, task registration and readback, and the signed update from 0.5.13 to the pinned release. It reproduces the old task-readback false failure, verifies its repair at 30- and 60-minute intervals, and runs the three compiled scheduler regression tests natively. The temporary scheduled task is removed after the run.
-
-No user account is connected. The final sync invoked by the ordinary update wrapper is expected to report that no account is configured; acceptance requires the preceding signed promotion and post-update check to succeed and the old binary to remain available.
-
-Native Windows release acceptance is complete only when the workflow actually runs and passes. A queued or billing-blocked job is not acceptance evidence.
+The check covers paginated history, duplicates, true counter gaps, Unicode paths, scheduled tasks, PowerShell execution and signed upgrades.
