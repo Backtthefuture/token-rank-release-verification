@@ -1,5 +1,3 @@
-# Token Rank native Windows release verification
+# Token Rank native Windows validation
 
-Synthetic black-box checks for signed Token Rank 0.5.18 binaries. The runner checks identity and SHA-256, legacy and paginated accounting, shared-root subagent records, estimated context notifications, duplicate responses, real counter gaps, Chinese paths, scheduled tasks and PowerShell signed updates. Source metadata is pinned in release-config.json.
-
-No private application source, credentials, conversation logs or real user usage are published here. Temporary fixtures and scheduled tasks are confined to a disposable Windows runner. The compiled regression executable is also pinned by SHA-256.
+Synthetic fixtures only. This workflow validates the fixed 0.5.19 candidate on Windows Server 2022 and Windows PowerShell 5.1. The signed manifest uses the `validation` channel and a localhost origin; it does not alter either public stable manifest. A passing run does not satisfy the trusted Authenticode or antivirus-vendor gates.
