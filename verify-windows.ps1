@@ -202,10 +202,10 @@ try {
     }
     $newWrapperHash=Digest $wrapper
     Copy-Item -LiteralPath $old -Destination $Bin -Force
-    $legacyService=Run 'legacy-service-install' $Bin @('service','install','--site',$LocalSite,'--interval','1800')
-    Assert ($legacyService.exit -eq 1 -and $legacyService.stderr.Contains('read-back validation failed')) 'Legacy reproduction changed unexpectedly'
+    $previousService=Run 'previous-service-install' $Bin @('service','install','--site',$LocalSite,'--interval','1800')
+    Assert ($previousService.exit -eq 0) 'Accepted 0.5.17 scheduler baseline failed'
     Disable-ScheduledTask -TaskName TokenRankSync | Out-Null
-    Assert ((Digest $wrapper) -eq $newWrapperHash) 'The installed legacy updater differs from the fixed release updater'
+    Assert ((Digest $wrapper) -eq $newWrapperHash) 'The accepted 0.5.17 updater wrapper drifted unexpectedly'
     $stage=Run 'signed-stage' $Bin @('update','stage','--site',$LocalSite,'--channel','validation','--json')
     Assert ($stage.exit -eq 80) 'Signed candidate did not stage'
     $pending=Get-Content -LiteralPath (Join-Path $env:TOKEN_RANK_DATA_DIR 'pending-update.json') -Raw|ConvertFrom-Json
