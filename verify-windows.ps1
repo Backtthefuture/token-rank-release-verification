@@ -12,8 +12,9 @@ $Utf8=New-Object Text.UTF8Encoding($true)
 $Results=New-Object 'System.Collections.Generic.List[object]'
 $env:POWERSHELL_TELEMETRY_OPTOUT='1'
 $env:TOKEN_RANK_DATA_DIR=Join-Path $Root 'data'
-$env:CODEX_HOME=Join-Path $Root 'empty-codex'
-[void](New-Item -ItemType Directory -Path $env:TOKEN_RANK_DATA_DIR,$env:CODEX_HOME -Force)
+Remove-Item Env:CODEX_HOME -ErrorAction SilentlyContinue
+$env:CODEX_CONFIG_DIR=Join-Path $Root 'empty-codex'
+[void](New-Item -ItemType Directory -Path $env:TOKEN_RANK_DATA_DIR,$env:CODEX_CONFIG_DIR -Force)
 $NativePowerShell=Join-Path $env:WINDIR 'System32/WindowsPowerShell/v1.0/powershell.exe'
 $Bin=Join-Path $Root 'token-rank.exe'
 function Assert([bool]$Condition,[string]$Message) { if(-not $Condition){throw $Message} }
@@ -46,10 +47,10 @@ function ParseScript([string]$Path) {
 function Counts($inputCount,$cached,$outputCount,$reasoning){
     return @{input_tokens=$inputCount;cached_input_tokens=$cached;cache_write_input_tokens=0;output_tokens=$outputCount;reasoning_output_tokens=$reasoning;total_tokens=($inputCount+$outputCount)}
 }
-function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap,[bool]$Paged=$false,[bool]$Upstream=$false) {
+function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap,[bool]$Paged=$false,[bool]$Upstream=$false,[bool]$Estimated=$false) {
     $case=Join-Path $Root $Name;$sessions=Join-Path $case 'sessions'
     [void](New-Item -ItemType Directory -Path $sessions -Force)
-    $env:CODEX_HOME=$case
+    $env:CODEX_CONFIG_DIR=$case
     $thread='11111111-1111-4111-8111-111111111111';$parent='22222222-2222-4222-8222-222222222222'
     $ts=[DateTimeOffset]::UtcNow.AddMinutes(-10).ToUnixTimeMilliseconds()
     $first=Counts 1000000 10000 159276 1000;$second=Counts 90000 9000 4975 500;$total=Counts 1090000 19000 164251 1500
@@ -63,6 +64,11 @@ function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap,[bool]$Paged=$fal
     )
     if($Duplicate){$rows+=,$rows[-1]}
     $rows+=,@{timestamp=($ts+3000);type='event_msg';payload=@{type='token_count';info=@{last_token_usage=$second;total_token_usage=$second}}}
+    if($Estimated){
+        $rows[3].payload.info.last_token_usage=@{input_tokens=0;cached_input_tokens=0;output_tokens=0;reasoning_output_tokens=0;total_tokens=777}
+        $rows[-1].payload.info.last_token_usage=@{input_tokens=0;cached_input_tokens=0;output_tokens=0;reasoning_output_tokens=0;total_tokens=999}
+        $rows[-1].payload.info.total_token_usage=$total
+    }
     $path=Join-Path $sessions ('rollout-'+$thread+'.jsonl')
     [IO.File]::WriteAllText($path,(($rows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
     $secondPath=$null;$secondBefore=$null
@@ -124,6 +130,9 @@ try {
     ScanFixture 'subagent-normal' $false $false $true $true
     ScanFixture 'subagent-duplicate' $true $false $true $true
     ScanFixture 'subagent-gap' $false $true $true $true
+    ScanFixture 'estimated-normal' $false $false $false $false $true
+    ScanFixture 'estimated-duplicate' $true $false $false $false $true
+    ScanFixture 'estimated-gap' $false $true $false $false $true
     $installScript=Join-Path $Root 'install.ps1'
     Invoke-WebRequest -UseBasicParsing -Uri ($Site+'/token-rank/install.ps1') -OutFile $installScript -TimeoutSec 45
     $null=ParseScript $installScript
@@ -131,7 +140,7 @@ try {
     Invoke-WebRequest -UseBasicParsing -Uri ($Site+'/token-rank/dl/v0.5.13/'+$Previous+'/token-rank.exe') -OutFile $old -TimeoutSec 120
     Assert ((Digest $old) -eq $Previous) 'Previous release hash mismatch'
     $env:TOKEN_RANK_DATA_DIR=Join-Path $Root 'upgrade data'
-    $env:CODEX_HOME=Join-Path $Root 'empty-codex'
+    $env:CODEX_CONFIG_DIR=Join-Path $Root 'empty-codex'
     [void](New-Item -ItemType Directory -Path $env:TOKEN_RANK_DATA_DIR -Force)
     Assert (-not (Get-ScheduledTask -TaskName TokenRankSync -ErrorAction SilentlyContinue)) 'Unexpected pre-existing task on disposable runner'
     $service=Run 'service-install' $Bin @('service','install','--site',$Site,'--interval','1800')
@@ -194,6 +203,8 @@ try {
     Assert ($unit.exit -eq 0 -and $unit.stdout.Contains('3 passed; 0 failed')) 'Native scheduler unit regressions failed'
     $pagesUnit=Run 'native-pages-unit-tests' $testBinary @('codex_pages::tests','--nocapture')
     Assert ($pagesUnit.exit -eq 0 -and $pagesUnit.stdout.Contains('13 passed; 0 failed')) 'Native page accounting regressions failed'
+    $estimateUnit=Run 'native-estimate-unit-tests' $testBinary @('estimated_notification','--nocapture')
+    Assert ($estimateUnit.exit -eq 0 -and $estimateUnit.stdout.Contains('5 passed; 0 failed')) 'Native estimated notification regressions failed'
     $healthUnit=Run 'native-health-unit-tests' $testBinary @('source_health_reports_bounded_dates_and_known_codes_without_file_details','--nocapture')
     Assert ($healthUnit.exit -eq 0 -and $healthUnit.stdout.Contains('1 passed; 0 failed')) 'Native source health privacy regression failed'
     $report=@{version=$Version;status='native_windows_passed';os=[Environment]::OSVersion.VersionString;powershell=$PSVersionTable.PSVersion.ToString();native_wrapper_powershell='Windows PowerShell 5.1';sha256=$Expected;commit=$Commit;checks=$Results;wrapper_final_exit_without_account=$wrapperRun.exit;real_user_data_used=$false}
