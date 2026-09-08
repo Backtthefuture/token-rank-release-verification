@@ -46,7 +46,7 @@ function ParseScript([string]$Path) {
 function Counts($inputCount,$cached,$outputCount,$reasoning){
     return @{input_tokens=$inputCount;cached_input_tokens=$cached;cache_write_input_tokens=0;output_tokens=$outputCount;reasoning_output_tokens=$reasoning;total_tokens=($inputCount+$outputCount)}
 }
-function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap,[bool]$Paged=$false) {
+function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap,[bool]$Paged=$false,[bool]$Upstream=$false) {
     $case=Join-Path $Root $Name;$sessions=Join-Path $case 'sessions'
     [void](New-Item -ItemType Directory -Path $sessions -Force)
     $env:CODEX_HOME=$case
@@ -76,6 +76,13 @@ function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap,[bool]$Paged=$fal
         $secondPath=Join-Path $sessions 'rollout-33333333-3333-4333-8333-333333333333.jsonl'
         [IO.File]::WriteAllText($path,(($firstRows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
         [IO.File]::WriteAllText($secondPath,(($pageRows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
+        if($Upstream){
+            $firstRows[0].payload.session_id=$parent;$pageRows[0].payload.session_id=$parent
+            Remove-Item -LiteralPath $secondPath
+            $secondPath=Join-Path $sessions ('rollout-'+$thread+'_33333333-3333-4333-8333-333333333333.jsonl')
+            [IO.File]::WriteAllText($path,(($firstRows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
+            [IO.File]::WriteAllText($secondPath,(($pageRows|ForEach-Object {$_|ConvertTo-Json -Depth 15 -Compress}) -join "`n")+"`n",(New-Object Text.UTF8Encoding($false)))
+        }
         $secondBefore=Digest $secondPath
     }
     $before=Digest $path
@@ -114,6 +121,9 @@ try {
     ScanFixture 'paged-normal' $false $false $true
     ScanFixture 'paged-duplicate' $true $false $true
     ScanFixture 'paged-gap' $false $true $true
+    ScanFixture 'subagent-normal' $false $false $true $true
+    ScanFixture 'subagent-duplicate' $true $false $true $true
+    ScanFixture 'subagent-gap' $false $true $true $true
     $installScript=Join-Path $Root 'install.ps1'
     Invoke-WebRequest -UseBasicParsing -Uri ($Site+'/token-rank/install.ps1') -OutFile $installScript -TimeoutSec 45
     $null=ParseScript $installScript
@@ -183,7 +193,7 @@ try {
     $unit=Run 'native-task-unit-tests' $testBinary @('windows_task','--nocapture')
     Assert ($unit.exit -eq 0 -and $unit.stdout.Contains('3 passed; 0 failed')) 'Native scheduler unit regressions failed'
     $pagesUnit=Run 'native-pages-unit-tests' $testBinary @('codex_pages::tests','--nocapture')
-    Assert ($pagesUnit.exit -eq 0 -and $pagesUnit.stdout.Contains('8 passed; 0 failed')) 'Native page accounting regressions failed'
+    Assert ($pagesUnit.exit -eq 0 -and $pagesUnit.stdout.Contains('13 passed; 0 failed')) 'Native page accounting regressions failed'
     $healthUnit=Run 'native-health-unit-tests' $testBinary @('source_health_reports_bounded_dates_and_known_codes_without_file_details','--nocapture')
     Assert ($healthUnit.exit -eq 0 -and $healthUnit.stdout.Contains('1 passed; 0 failed')) 'Native source health privacy regression failed'
     $report=@{version=$Version;status='native_windows_passed';os=[Environment]::OSVersion.VersionString;powershell=$PSVersionTable.PSVersion.ToString();native_wrapper_powershell='Windows PowerShell 5.1';sha256=$Expected;commit=$Commit;checks=$Results;wrapper_final_exit_without_account=$wrapperRun.exit;real_user_data_used=$false}
