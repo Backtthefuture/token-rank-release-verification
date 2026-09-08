@@ -9,5 +9,8 @@
   "validation_manifest_sha256": "56eea316d37959372871e8ae6afc3790447f589351b9600a4b7489e27c439c4a",
   "validation_signature_sha256": "fc56b1132b6ef0f8bd762cf657280e7446c9e86d965cf15b94781ff9a057dd04",
   "channel": "validation",
-  "release_allowed": false
+  "release_allowed": false,
+  "local_stable_manifest_sha256": "67a26da32e1abfd2d8ce08bf5e6ab7f39811ee2da486d5f4ce8aeedbf912dd1f",
+  "local_stable_signature_sha256": "e6c017819b276f57c5d6bb3d9e4b376bb1b38c4f8c2ae1bf5123123197208eed",
+  "local_stable_manifest_sequence": 2026090941
 }
