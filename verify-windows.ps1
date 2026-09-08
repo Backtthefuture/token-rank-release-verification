@@ -72,7 +72,8 @@ function ScanFixture([string]$Name,[bool]$Duplicate,[bool]$Gap) {
             Assert (@($scan.sources.codex.blocked_dates).Count -gt 0) 'Counter gap was not held'
             Assert ($run.stdout.Contains('ledger_thread_discontinuity')) 'Missing exact gap diagnostic'
         }else{
-            Assert (@($scan.sources.codex.blocked_dates).Count -eq 0) 'Unexpected blocked date'
+            Assert (@($scan.sources.codex.blocked_dates | Where-Object { $null -ne $_ }).Count -eq 0) 'Unexpected blocked date'
+            Assert ($scan.sources.codex.status -eq 'ready' -and @($scan.sources.codex.verified_dates).Count -gt 0) 'Verified coverage was not reported'
             $hour=($scan.hourly_model|Measure-Object -Property total_tokens -Sum).Sum
             $session=($scan.sessions|Measure-Object -Property total_tokens -Sum).Sum
             Assert ($hour -eq 1254251 -and $session -eq 1254251) ('Incorrect accounting: '+$hour+'/'+$session)
