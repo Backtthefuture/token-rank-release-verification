@@ -1,5 +1,5 @@
 # Token Rank native Windows release verification
 
-Public black-box verification on a disposable Windows 2022 runner, using signed release artifacts and synthetic usage fixtures. No private application source, user records or credentials are stored here.
+Synthetic black-box checks for signed Token Rank 0.5.17 binaries. The runner checks identity and SHA-256, legacy and paginated accounting, shared-root subagent records, duplicate responses, real counter gaps, Chinese paths, scheduled tasks and PowerShell signed updates. Source metadata is pinned in release-config.json.
 
-The check covers paginated history, duplicates, true counter gaps, Unicode paths, scheduled tasks, PowerShell execution and signed upgrades.
+No private application source, credentials, conversation logs or real user usage are published here. Temporary fixtures and scheduled tasks are confined to a disposable Windows runner. The compiled regression executable is also pinned by SHA-256.
