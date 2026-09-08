@@ -1,0 +1,25 @@
+name: Native Windows release verification
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: windows-release-verification
+  cancel-in-progress: false
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - name: Fetch public verification script at this exact commit
+        shell: powershell
+        run: |
+          $ErrorActionPreference='Stop'
+          Invoke-WebRequest -UseBasicParsing -Uri "https://raw.githubusercontent.com/$env:GITHUB_REPOSITORY/$env:GITHUB_SHA/verify-windows.ps1" -OutFile "$env:RUNNER_TEMP/verify-windows.ps1" -TimeoutSec 60
+      - name: Execute native Windows PowerShell acceptance
+        shell: powershell
+        run: |
+          & "$env:RUNNER_TEMP/verify-windows.ps1"
+          if (-not $?) { exit 1 }
