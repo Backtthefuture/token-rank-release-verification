@@ -139,7 +139,8 @@ try {
     [void](New-Item -ItemType Directory -Path (Split-Path -Parent $LocalArtifact) -Force)
     Copy-Item -LiteralPath $Bin -Destination $LocalArtifact
     $Python=(Get-Command python).Source
-    $ServerProcess=Start-Process -FilePath $Python -ArgumentList @('-m','http.server','8765','--bind','127.0.0.1','--directory',$ServerRoot) -PassThru -WindowStyle Hidden
+    $env:TOKEN_RANK_VALIDATION_ROOT=$ServerRoot
+    $ServerProcess=Start-Process -FilePath $Python -ArgumentList @((Join-Path $PSScriptRoot 'validation-server.py')) -PassThru -WindowStyle Hidden
     $ServerReady=$false
     foreach($attempt in 1..20){try{$null=Invoke-WebRequest -UseBasicParsing -Uri ($LocalSite+'/token-rank/dl/manifest-v1.json') -TimeoutSec 3;$ServerReady=$true;break}catch{Start-Sleep -Seconds 1}}
     Assert $ServerReady 'Local signed validation server did not start'
